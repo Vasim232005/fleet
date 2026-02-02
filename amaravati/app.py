@@ -323,6 +323,20 @@ with st.sidebar:
                 st.error(f"Address not found: '{hub_addr}'. Please check the spelling.")
             else:
                 st.error(f"Geocoding Service Error: {res}")
+    
+    # --- Hub Management ---
+    if st.session_state.hubs:
+        h = st.session_state.hubs[0]
+        hcol1, hcol2 = st.columns([4, 1])
+        hcol1.markdown(f"**Hub:** `{h['name']}`")
+        if hcol2.button("🗑️", key="del_hub", help="Remove Hub"):
+            st.session_state.hubs = []
+            for v in st.session_state.fleet.values():
+                v['pos'] = None
+                v['start_pos'] = None
+                v['status'] = "Waiting"
+            st.session_state.final_analysis = None
+            st.rerun()
 
     stop_addr = st.text_input("Add Delivery Stop", placeholder="e.g. Brooklyn, NY")
     if st.button("📦 Add Stop"):
@@ -336,6 +350,24 @@ with st.sidebar:
                 st.error(f"Address not found: '{stop_addr}'. Please check the spelling.")
             else:
                 st.error(f"Geocoding Service Error: {res}")
+
+    # --- Stop Management ---
+    if st.session_state.stops:
+        st.markdown("---")
+        st.caption("📍 Active Delivery Stops")
+        for i, s in enumerate(st.session_state.stops):
+            scol1, scol2 = st.columns([4, 1])
+            scol1.markdown(f"<p style='font-size:0.85em; margin:0;'>{s['name']}</p>", unsafe_allow_html=True)
+            if scol2.button("🗑️", key=f"del_stop_{i}", help=f"Remove Stop: {s['name']}"):
+                st.session_state.stops.pop(i)
+                st.session_state.final_analysis = None
+                # If mission is active, reset paths effectively requiring a re-dispatch
+                for v in st.session_state.fleet.values():
+                    v['original_path'] = []
+                    v['optimized_path'] = []
+                    v['path'] = []
+                    v['status'] = "Ready" if st.session_state.hubs else "Waiting"
+                st.rerun()
     
     st.markdown("---")
     st.subheader("⚛️ Quantum Console")
@@ -714,6 +746,5 @@ st.markdown("""
     © 2026 QuantumRoute Logistics | Powered by Qiskit Aer & Streamlit
 </div>
 """, unsafe_allow_html=True)
-
 
 
