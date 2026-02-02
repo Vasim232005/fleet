@@ -96,25 +96,44 @@ def get_dist(p1, p2):
     return geodesic((p1['lat'], p1['lon']), (p2['lat'], p2['lon'])).kilometers
 
 def get_coords(addr):
+    import concurrent.futures
     from geopy.geocoders import Nominatim, Photon
     from geopy.exc import GeopyError
     import requests
     
-    # Try Nominatim first (Enhanced with unique user agent)
-    try:
-        geo = Nominatim(user_agent="QuantumRoute_Optimizer_v2_Project", timeout=10)
-        res = geo.geocode(addr)
-        if res: return (res.latitude, res.longitude)
-    except (GeopyError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
-        # 🛡️ FALLBACK 1: If Nominatim is blocked/down, try Photon (Alternative OSM service)
+    # 1. Check Session Cache (Instant result)
+    if 'geo_cache' not in st.session_state:
+        st.session_state.geo_cache = {}
+    
+    clean_addr = addr.strip().lower()
+    if clean_addr in st.session_state.geo_cache:
+        return st.session_state.geo_cache[clean_addr]
+
+    # 2. Parallel Race (Fastest service wins)
+    def fetch(geocoder, query):
         try:
-            geo_alt = Photon(user_agent="QuantumRoute_Optimizer_v2_Project", timeout=10)
-            res_alt = geo_alt.geocode(addr)
-            if res_alt: return (res_alt.latitude, res_alt.longitude)
+            res = geocoder.geocode(query, timeout=5)
+            return (res.latitude, res.longitude) if res else None
         except:
-            pass
-    except Exception as e:
-        return f"UNKNOWN_ERROR: {str(e)}"
+            return None
+
+    # Nominatim and Photon are both free OSM-based services
+    services = [
+        Nominatim(user_agent="QuantumRoute_Fast_v2_Project"),
+        Photon(user_agent="QuantumRoute_Fast_v2_Project")
+    ]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(services)) as executor:
+        # Submit both requests at the same time
+        futures = {executor.submit(fetch, s, addr): s for s in services}
+        
+        # Return the first one that succeeds
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                # Store in cache for next time
+                st.session_state.geo_cache[clean_addr] = result
+                return result
 
     return "NOT_FOUND"
 
