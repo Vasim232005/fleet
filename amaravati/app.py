@@ -284,6 +284,7 @@ for v in st.session_state.fleet.values():
 STATUS_COLOR = {"Waiting": "gray", "Ready": "green", "On Mission": "blue", "Broken": "red", "Completed": "darkgreen"}
 
 # ================= SIDEBAR =================
+with st.sidebar:
     st.title("Fleet Control")
     st.markdown("---")
     hub_addr = st.text_input("Add Hub Location", placeholder="e.g. New York, NY")
@@ -694,5 +695,6 @@ st.markdown("""
     © 2026 QuantumRoute Logistics | Powered by Qiskit Aer & Streamlit
 </div>
 """, unsafe_allow_html=True)
+
 
 
